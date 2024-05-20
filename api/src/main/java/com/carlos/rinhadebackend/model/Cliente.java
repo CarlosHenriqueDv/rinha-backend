@@ -12,6 +12,9 @@ public class Cliente {
     @Column(name = "ID")
     private Integer id;
 
+    @Column(name = "NOME")
+    private String nome;
+
     @Column(name = "SALDO", nullable = false)
     @Positive
     private Integer saldo;

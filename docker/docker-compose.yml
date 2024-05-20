@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_compose
+    restart: always
+    ports:
+      - "3306:3306"
+    expose:
+      - 3306
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    networks:
+      - rinha-network
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PORT: 3306
+
+  service-discovery:
+    build: ../service-discovery
+    container_name: service-discovery
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    networks:
+      - rinha-network
+    ports:
+      - "8761:8761"
+    expose:
+      - "8761"
+    environment:
+      - SPRING_APPLICATION_NAME=service-discovery
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+
+  api-gateway:
+    build: ../api-gateway
+    container_name: gateway
+    links:
+      - service-discovery
+    ports:
+      - "9999:9999"
+    expose:
+      - "8080"
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    networks:
+      - rinha-network
+    depends_on:
+      - service-discovery
+    environment:
+      - SPRING_APPLICATION_NAME=api-gateway
+      #- EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka/
+      #- EUREKA_INSTANCE_PREFERIPADDRESS=true
+      - DISCOVERY_SERVER=service-discovery
+
+  api1:
+    build: ../api
+    container_name: api1
+    links:
+      - service-discovery
+      - api-gateway
+      - db
+    ports:
+      - "8081:8081"
+    expose:
+      - "8081"
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    networks:
+      - rinha-network
+    depends_on:
+      - service-discovery
+      - api-gateway
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/rinha?createDatabaseIfNotExist=true&useSSL=false&useTimezone=true&serverTimezone=America/Belem
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      DISCOVERY_SERVER: service-discovery
+
+  api2:
+    build: ../api
+    container_name: api2
+    links:
+      - service-discovery
+      - api-gateway
+      - db
+    ports:
+      - "8082:8082"
+    expose:
+      - "8082"
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    networks:
+      - rinha-network
+    depends_on:
+      - service-discovery
+      - api-gateway
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/rinha?createDatabaseIfNotExist=true&useSSL=false&useTimezone=true&serverTimezone=America/Belem
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      DISCOVERY_SERVER: service-discovery
+
+
+networks:
+  rinha-network:
+    driver: bridge
